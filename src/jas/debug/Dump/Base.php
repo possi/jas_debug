@@ -12,9 +12,6 @@ abstract class Base {
         $this->d = $d;
     }
     
-    abstract public function get(&$value);
-    abstract public function getRecursion(&$value);
-    
     public function display($displayClass, $value) {
         return $this->d->et($displayClass, $value);
     }
@@ -23,6 +20,11 @@ abstract class Base {
     }
     
     public function getCollapsedDisplay() {
-        return "{...}";
+        return $this->display(Display::COLLAPSED, 
+            '{' . $this->display(Display::PLACEHOLDER) . '}');
     }
+    
+    abstract public function get(&$value);
+    abstract public function getPrototype(&$value);
+    abstract public function getRecursion(&$value);
 }

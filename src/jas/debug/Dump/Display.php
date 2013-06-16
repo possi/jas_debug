@@ -16,6 +16,8 @@ class Display {
     const REFERENCE = 'ref';
     const KEY_CLASS = 'keyclass';
     const KEY_VISIBILITY = 'keyvisibility';
+    const COLLAPSED = 'collapsed';
+    const PLACEHOLDER = 'placeholder';
     
     public static function getStyleSheet() {
         $ns = self::CSS_NS;

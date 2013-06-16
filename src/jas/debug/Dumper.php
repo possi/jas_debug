@@ -4,6 +4,17 @@ namespace jas\debug;
 
 use jas\debug\Dump\Display;
 
+/**
+ * Alterantive zu {@link var_dump()} mit einigen Optimiereung.
+ *
+ *  - Für SugarBean-Objekte werden nur die Attribute die nach field_defs definiert sind ausgegeben.
+ *  - Implementation von {@link Dumpable} werden wie das entsprechende zurückgegebene Elemnt ausgegeben (array, string, int, etc...)
+ *  - Ein optionaler Parameter am Ende erlaubt folgende modifikationen: {@link $level}
+ *
+ * @param mixed $var ,... Ein oder mehrere auszugebende Variablen
+ * @param int $level optional -1: ZurÃ¼ck geben statt Ausgeben; -2 fÃ¼r Ausgeben mit <<pre>> (fÃ¼r HTML-Darstellung)
+ * @return NULL|string Falls level -1 wird die Formatierte Ausgabe zurÃ¼ck gegeben
+ */
 class Dumper {
     const OPT_OUTPUT = 0;
     const OPT_RETURN = 1;
@@ -15,17 +26,22 @@ class Dumper {
     protected $dumper_cache = array();
     protected static $object_cache = array(); // only stores object ids, so no need to be gc'ed
     protected $recursive_cache = array();
-    
+    /**
+     * Konfigurations-Parameter:
+     *  - max_nesting_deep: Anzahl an Ebenen von Objekten die dargestellt werden sollen (Standard 1; -1 für Alle)
+     * @var array
+     */
     public static $defaultSettings = array(
         'max_nesting_deep' => 2,
         'indent_spaces' => 4,
         'background' => false,
+        'huge_array_el_count' => 3,
     );
     
     public static $primitiveType = 'jas\debug\Dump\Primitive';
     public static $registeredTypes = array(
-        //'\SugarBean' => 'jas\debug\Dump\SugarBean',
-        //'\Varien_Object' => 'jas\debug\Dump\Varien_Object',
+        '\SugarBean' => 'jas\debug\Dump\SugarBean',
+        '\Varien_Object' => 'jas\debug\Dump\Varien_Object',
     );
     
     protected $options = 0;
@@ -101,15 +117,19 @@ class Dumper {
         $type = $this->getType($dt);
         
         $r = null;
-        if (is_object($var) || is_array($var)) {
+        if (is_object($var) || (is_array($var) && count($var) >= $this->settings['huge_array_el_count'])) {
             if (in_array($var, $this->recursive_cache, true)) {
-                $r = $type->getRecursion($obj);
+                $r = $type->getRecursion($var);
             } else {
                 $this->recursive_cache[] =& $var;
             }
         }
-        if ($r === null)
-            $r = $type->get($var);
+        if ($r === null) {
+            if ($this->getMaxLevel() > -1 && $this->getCurrentLevel() > $this->getMaxLevel())
+                $r = $type->getPrototype($var);
+            else
+                $r = $type->get($var);
+        }
         $this->level--;
         return $r;
     }
@@ -119,19 +139,6 @@ class Dumper {
         return $this->dumper_cache[$type];
     }
     
-    /**
-     * Alterantive zu {@link var_dump()} mit einigen Optimiereung.
-     *
-     *  - Für SugarBean-Objekte werden nur die Attribute die nach field_defs definiert sind ausgegeben.
-     *  - Implementation von {@link Dumpable} werden wie das entsprechende zurÃ¼ckgegebene Elemnt ausgegeben (array, string, int, etc...)
-     *  - Ein optionaler Parameter am Ende erlaubt folgende modifikationen: {@link $level}
-     *
-     * Konfigurations-Parameter in {@link $config}['utils']['dump']:
-     *  - max_nested_objects: Anzahl an Ebenen von Objekten die dargestellt werden sollen (Standard 1; -1 fÃ¼r Alle)
-     * @param mixed $var ,... Ein oder mehrere auszugebende Variablen
-     * @param int $level optional -1: ZurÃ¼ck geben statt Ausgeben; -2 fÃ¼r Ausgeben mit <<pre>> (fÃ¼r HTML-Darstellung)
-     * @return NULL|string Falls level -1 wird die Formatierte Ausgabe zurÃ¼ck gegeben
-     */
     public static function dump($bean, $opt = 0) {
         $args = func_get_args();
         if (count($args) > 1) {
@@ -147,154 +154,7 @@ class Dumper {
             $opt = self::DISPLAY_PRE | self::OPT_OUTPUT;
         
         $dumper = new static($opt);
-        $r = call_user_func_array(array($dumper, 'dumps'), $args);
-        echo "<hr />";var_dump($dumper);echo "<hr />";
-        return $r;
-        /*
-        if (count($args) > 2 || count($args) == 2 && !is_int($level)) {
-            $level = 0;
-            if (count($args) > 2 && is_int($level = end($args)) && $level < 0) {
-                $level = array_pop($args);
-            }
-            reset($args);
-            $ret = "";
-            while (list($i, $bean) = each($args)) {
-                if (!empty($ret))
-                    $ret .= "\n";
-                $ret .= dump($bean, $level);
-            }
-            return $ret;
-        } else {
-            static $reco = array(); // Rekursions-PrÃ¼fung: Verhindern von Rekursiv dargestellten Objekten
-            if (($l = max(0, $level)) == 0) { // Level 0: zurÃ¼cksetzen des Rekursions-Caches
-                $reco = array();
-            }
-            
-            if (is_object($bean) && is_a($bean, "SugarBean")) {
-                $valid_attr = array(
-                    'id',
-                    //'new_schema',
-                    'new_with_id',
-                    //'processed_dates_times', 'process_save_dates', 'number_formatting_done',
-                    //'save_from_post', 'duplicates_found',
-                    'table_name', 'object_name', 'module_dir',
-                    'update_date_modified', 'update_modified_by', 'update_date_entered', 'set_created_by',
-                    'deleted',
-                );
-                foreach (array_keys($bean->field_defs) as $key) {
-                    if (!in_array($key, $valid_attr)) {
-                        $valid_attr[] = $key;
-                    }
-                }
-                if (isset($bean->custom_fields) && isset($bean->custom_fields->avail_fields)) {
-                    foreach (array_keys($bean->custom_fields->avail_fields) as $key) {
-                        if (!in_array($key, $valid_attr)) {
-                            $valid_attr[] = $key;
-                        }
-                    }
-                }
-                $string = "";
-                $fields = 0;
-                foreach ($valid_attr as $key) {
-                    if (property_exists($bean, $key) && !isset($bean->$key)) {
-                        $fields++;
-                        $string .= '  ["'.$key.'"] => null'."\n";
-                    } elseif (isset($bean->$key) && (!is_object($bean->$key) || $bean->$key instanceof Dumpable)) {
-                        $fields++;
-                        $string .= '  ["'.$key.'"] => ';
-                        $x = dump($bean->$key, -1);
-                        $string .= trim(str_replace("\n", "\n  ", trim($x)))."\n";
-                    }
-                }
-                $string  = "SugarBean(".get_class($bean).") (".$fields.") {\n" . $string;
-                $string .= "}\n";
-            } elseif (is_object($bean)) {
-                static $oids = array(); // Objekt Indexes: Index des Array ist die ID des Objektes
-            
-                if (($id = array_search(spl_object_hash($bean), $oids)) === false) {
-                    $oids[] = spl_object_hash($bean);
-                    $id = array_search(spl_object_hash($bean), $oids);
-                }
-                $max_level = Config::get('utils.dump.max_nested_objects', 1);
-                if (in_array(spl_object_hash($bean), $reco)) {
-                    $string = "&object(".get_class($bean).")#$id (*rekursion*)\n";
-                } else {
-                    $reco[] = spl_object_hash($bean);
-                    if ($bean instanceof interfaces\Dumpable) {
-                        $class = get_class($bean);
-                        $string = "object(".$class.")#$id";
-                        $props = $bean->_toDump();
-                        if (is_array($props)) {
-                            $string .= " (".count($props).") {\n";
-                            foreach ($props as $key => $prop) {
-                                $string .= "  [".(is_string($key) ? "\"{$key}\"" : $key)."] => ";
-                                $string .= ltrim(dump($prop, $l+1));
-                            }
-                            $string .= "}\n";
-                        } else {
-                            $string .= " ".dump($props, $l+1);
-                        }
-                    } elseif ($l < $max_level || $max_level == -1) {
-                        $class = get_class($bean);
-                        $string = "object(".$class.")#$id";
-                        $rfl = new \ReflectionObject($bean);
-                        $string .= " (".count($props = $rfl->getProperties()).") {\n";
-                        foreach ($props as $prop) {
-                            if ($prop->isStatic())
-                                continue;
-                            $prop->setAccessible(true);
-                            $key = $prop->getName();
-                            $pclass = $prop->class == $class ? '' : ':"'.$class.'"';
-                            $visible = $prop->isProtected() ? ':protected' :
-                            $prop->isPrivate() ? ':private' : '';
-                            
-                            $string .= "  [".(is_string($key) ? "\"{$key}\"" : $key).$pclass.$visible."] => ";
-                            $string .= ltrim(dump($prop->getValue($bean), $l+1));
-                        }
-                        $string .= "}\n";
-                    } else {
-                        $string = "&object(".get_class($bean).")#$id {...}\n";
-                    }
-                }
-            } elseif (is_array($bean)) {
-                $string = "array(".count($bean).")";
-                if (count($bean) != 0) {
-                    $string .= " {\n";
-                    reset($bean);
-                    while (list($key, $val) = each($bean)) {
-                        $string .= "  [".(is_string($key) ? "\"{$key}\"" : $key)."] => ";
-                        $string .= ltrim(dump($val, max(0, $level) + 1));
-                    }
-                    $string .= "}\n";
-                } else {
-                    $string .= "\n";
-                }
-            } elseif (is_int($bean)) {
-                $string = "int(".$bean.")\n";
-            } elseif (is_float($bean)) {
-                $string = "float(".$bean.")\n";
-            } elseif (is_bool($bean)) {
-                $string = "bool(".($bean ? 'true' : 'false').")\n";
-            } elseif (is_string($bean)) {
-                $string = "string(".strlen($bean).") \"{$bean}\"\n";
-            } elseif (is_null($bean)) {
-                $string = "NULL\n";
-            } elseif (is_resource($bean)) {
-                $string = "resource(".(int)$bean.") of type (".get_resource_type($bean).")\n";
-            } else {
-                $string = "unknown_type(".gettype($bean).") ".(string)$bean."\n";
-            }
-            if ($level == 0) {
-                echo $string;
-            } elseif ($level == -1) {
-                return $string;
-            } elseif ($level == -2) {
-                echo "<pre>".$string."</pre>";
-            } else {
-                return '  '.rtrim(str_replace("\n", "\n  ", $string), ' ');
-                //return str_repeat('  ', $level) . rtrim(str_replace("\n", "\n".str_repeat('  ', $level), $string), ' ');
-            }
-        }*/
+        return call_user_func_array(array($dumper, 'dumps'), $args);
     }
     
     public static function objUniqId(&$val) {
