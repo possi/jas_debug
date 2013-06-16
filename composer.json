@@ -3,6 +3,7 @@
     "type": "utility",
     "description": "Provides a small package of debugging utilites, especially a better var_dump-alternative",
     "keywords": ["debug", "var_dump"],
+    "license": "MIT",
     "homepage": "https://github.com/possi/jas_debug",
     "require": {
         "php": ">=5.3.0"
