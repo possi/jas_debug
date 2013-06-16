@@ -1,0 +1,13 @@
+{
+    "name": "jas/debug",
+    "type": "utility",
+    "description": "Provides a small package of debugging utilites, especially a better var_dump-alternative",
+    "keywords": ["debug", "var_dump"],
+    "homepage": "https://github.com/possi/jas_debug",
+    "require": {
+        "php": ">=5.3.0",
+    }
+    "autoload": {
+        "psr-0": { "jas\\debug\\": "src/" },
+    }
+}
