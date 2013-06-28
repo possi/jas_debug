@@ -24,7 +24,7 @@ jas\debug\Dumper::dump($var/*, ...*/);
 
 You can pass as much arguments to the Dump-Method as you like. By default it outputs an HTML-Version of the PHP-Object.
 When you pass an int bitmask (see Dumper-Constants) as last parameter, you are able to get a Text-Only version (with or
-without <pre> around) as output or returned.
+without &ltpre> around) as output or returned.
 
 
 On-The-Fly usage
