@@ -90,14 +90,14 @@ class Primitive extends Base {
                     $this->display(Display::TYPE_CONT_VAL, get_class($object))
                     . ")")
                     . '#' . Dumper::getObjectId($object)
-                    ." ".$this->getCollapsedDisplay();
+                    ." ".$this->getCollapsedDisplay(true);
         } elseif (is_array($val)) {
             $type = 'array';
             $string = $this->display(Display::TYPE, "array") .
                 $this->display(Display::TYPE_ATTR_VAL, "(".
                     $this->display(Display::TYPE_CONT_VAL, count($array))
                     . ")")
-                    ." ".$this->getCollapsedDisplay();
+                    ." ".$this->getCollapsedDisplay(count($array));
         } else {
             return $this->get($val);
         }

@@ -17,7 +17,7 @@ class Varien_Object extends Base {
         $string = $this->display(Display::REFERENCE, "&") .
         $this->display(Display::TYPE, "Varien_Object") .
         $this->display(Display::TYPE_ATTR_VAL, "(".
-            $this->display(Display::TYPE_CONT_VAL, get_class($object))
+            $this->display(Display::TYPE_CONT_VAL, get_class($val))
             . ")")
             . '#' . Dumper::getObjectId($object)
             ." (*rekursion*)";
@@ -29,10 +29,10 @@ class Varien_Object extends Base {
             $this->display(Display::REFERENCE, "&") .
             $this->display(Display::TYPE, "Varien_Object") .
             $this->display(Display::TYPE_ATTR_VAL, "(".
-                $this->display(Display::TYPE_CONT_VAL, get_class($object))
+                $this->display(Display::TYPE_CONT_VAL, get_class($val))
                 . ")")
             . '#' . Dumper::getObjectId($object)
-            ." ".$this->getCollapsedDisplay());
+            ." ".$this->getCollapsedDisplay(true));
     }
     
     public function get(&$val) {

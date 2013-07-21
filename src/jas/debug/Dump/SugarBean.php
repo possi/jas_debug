@@ -35,7 +35,7 @@ class SugarBean extends Base {
                 $this->display(Display::TYPE_CONT_VAL, get_class($object))
                 . ")")
                 . '#' . Dumper::getObjectId($object)
-                ." ".$this->getCollapsedDisplay());
+                ." ".$this->getCollapsedDisplay(true));
     }
     public function get(&$val) {
         $class = get_class($val);

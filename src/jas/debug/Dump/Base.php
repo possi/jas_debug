@@ -19,9 +19,9 @@ abstract class Base {
         return $this->d->er($typeClass, $value);
     }
     
-    public function getCollapsedDisplay() {
+    public function getCollapsedDisplay($nonempty = false) {
         return $this->display(Display::COLLAPSED, 
-            '{' . $this->display(Display::PLACEHOLDER) . '}');
+            '{' . ($nonempty ? $this->display(Display::PLACEHOLDER, '...') : '') . '}');
     }
     
     abstract public function get(&$value);
